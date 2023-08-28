@@ -1,0 +1,70 @@
+library IEEE;
+use IEEE.STD_LOGIC_1164.ALL;
+use IEEE.numeric_std.all;
+
+entity TrafficLIghtSystem is
+    Port ( 
+        refclk : in  std_logic;
+        seg_g, seg_r, seg_y : out std_logic_vector(6 downto 0) := (others => '0')
+    );
+end entity TrafficLIghtSystem;
+
+architecture RTL of TrafficLIghtSystem is
+    constant r_duration : natural := 7 * 48000000;  -- 7 seconds delay
+    constant y_duration : natural := 4 * 48000000;  -- 4 seconds delay
+    constant g_duration : natural := 7 * 48000000;  -- 7 seconds delay
+    signal Rst : std_logic;
+    signal active_seg : std_logic_vector(1 downto 0) := "00";  -- To keep track of the active segment
+
+    signal active_counter : natural range 0 to r_duration := 0;
+
+begin
+    Rst <= '0';
+
+    -- Counter process for counting down
+    process(refclk)
+    begin
+        if rising_edge(refclk) then
+            if active_counter > 0 then
+                active_counter <= active_counter - 1;
+            else
+                case active_seg is
+                    when "00" =>
+                        active_counter <= r_duration;  -- Set counter for 'r' duration
+                        active_seg <= "01";  -- Switch to 'y'
+                    when "01" =>
+                        active_counter <= y_duration;  -- Set counter for 'y' duration
+                        active_seg <= "10";  -- Switch to 'g'
+                    when others =>
+                        active_counter <= g_duration;  -- Set counter for 'g' duration
+                        active_seg <= "00";  -- Switch to 'r'
+                end case;
+            end if;
+        end if;
+    end process;
+
+    -- Segment display process
+    compteur : process(refclk, Rst)
+    begin
+        if Rst = '1' then
+            seg_g <= (others => '0');
+            seg_r <= (others => '0');
+            seg_y <= (others => '0');
+        elsif rising_edge(refclk) then
+            case active_seg is
+                when "00" =>
+                    seg_g <= "0010000";  -- Display 'g' on the seven-segment display
+                    seg_r <= (others => '1');  -- Turn off all segments for 'r' display
+                    seg_y <= (others => '1');  -- Turn off all segments for 'y' display
+                when "01" =>
+                    seg_g <= (others => '1');  -- Turn off all segments for 'g' display
+                    seg_r <= "1001110";  -- Display 'r' on the seven-segment display
+                    seg_y <= (others => '1');  -- Turn off all segments for 'y' display
+                when others =>
+                    seg_g <= (others => '1');  -- Turn off all segments for 'g' display
+                    seg_r <= (others => '1');  -- Turn off all segments for 'r' display
+                    seg_y <= "0010001";  -- Display 'y' on the seven-segment display
+            end case;
+        end if;
+    end process compteur; 
+end RTL;
